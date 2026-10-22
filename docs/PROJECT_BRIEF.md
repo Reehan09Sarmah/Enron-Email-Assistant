@@ -36,14 +36,14 @@ An agent over the EnronQA corpus (~103k emails, 150 inboxes; one inbox = one use
 - **Evals:** using a public QA set correctly (splits, leakage between dev and test), label noise, LLM-as-judge with a Flash-class model and its calibration, regression gates, eval cost control.
 - **Security:** threat modelling, indirect prompt injection via mail, the lethal trifecta (private data + untrusted content + an exfiltration channel), exfiltration via links/images, layered defences, least privilege, approval gates, PII redaction, measuring attack success.
 - **Agents and MCP:** the hand-written loop (decide, act, observe, stop), state, budgets, stop conditions, recovery; serving tools over MCP with session-bound identity (MCP basics carried over).
-- **LLMOps:** tracing, token/cost/latency accounting, prompt versioning, response caching, provider abstraction (Gemini/Grok), quotas and rate limits, CI eval gates.
+- **LLMOps:** tracing, token/cost/latency accounting, prompt versioning, response caching, provider abstraction (behind an interface, even with one provider), quotas and rate limits, CI eval gates.
 - **System design:** requirements first (latency, cost, privacy), a design doc with explicit trade-offs.
 
 ## Constraints
 - **Time:** 3 weeks at ~2 h/day ≈ **42 hours**, including study time in the tutoring chat. Track hours per phase.
-- **Hardware:** Intel i5-1135G7, 4 cores, integrated graphics, no CUDA GPU, Windows 11, ~68 GB free disk; RAM to confirm. Bulk embedding may run on Google Colab (GPU) and be downloaded; everything per query (query embedding with the same model, reranking, filtering, indexes) runs locally on CPU. Remote: LLM.
-- **Data on hand:** Rex has the Kaggle Enron CSV (1.43 GB, raw corpus). EnronQA (labelled subset) is not downloaded yet.
-- **Models:** Gemini or Grok **Flash-class** models via API (Rex's constraint). Free-tier quotas must be checked in each provider's console; design so retrieval and leakage evals need zero LLM calls.
+- **Hardware:** Intel i5-1135G7, 4 cores, Intel Iris Xe plus an NVIDIA GeForce MX330 (2 GB VRAM, too weak to plan around), Windows 11, ~68 GB free disk on E:, RAM 7.7 GB (about 1.8 GB free when checked 2026-10-22: stream or chunk large files). Bulk embedding may run on Google Colab (GPU) and be downloaded; everything per query (query embedding with the same model, reranking, filtering, indexes) runs locally on CPU. Remote: LLM.
+- **Data:** Rex's direction (2026-10-22) is EnronQA only, from Hugging Face `MichaelR207/enron_qa_0922`, saved under `data/raw/enron_qa_0922/` (git-ignored). The raw Kaggle CSV is not used; the formal data decision (version, licence, verification) is Q2.
+- **Models:** Gemini **Flash-class** models via API (Rex's constraint; no Grok API). Rex has two Gemini API keys from two Google accounts; whether each is on the paid or unpaid API tier, and its limits, must be read in AI Studio; design so retrieval and leakage evals need zero LLM calls.
 - **Data ethics:** these are real people's emails, released via a US regulator and widely used in research. Personal details stay redacted in anything published. Sending them to a free-tier API is acceptable for public research data only; say so explicitly in the design doc.
 - **Other work:** placement season; the MLOps platform project is on hold.
 
@@ -83,7 +83,7 @@ Like a senior team: **requirements first, then a living design doc (`docs/DESIGN
 ## Phases and budget (Rex confirms or changes; each decision starts with a study card)
 | Phase | Hours | Content |
 |---|---|---|
-| P0 Reset and setup | 1 | Confirm RAM; locate the Kaggle CSV and git-ignore the data folder; provider keys and quota check (no model decision yet). Environment (Python, `.venv`, `mcp` 2.3.0) is kept, not re-decided |
+| P0 Reset and setup | 1 | RAM confirmed; download EnronQA into the git-ignored `data/raw/`; provider keys and quota check (no model decision yet). Environment (Python, `.venv`, `mcp` 2.3.0) is kept, not re-decided |
 | P1 Frame and design | 4 | Ladder Stage A, no code: requirements and targets; data source and data contract; access model; eval plan; back-of-envelope estimates; high-level architecture and interfaces. `DESIGN.md` §2–§7 drafted |
 | P2 Data | 3 | Download and freeze the chosen (cleaned) data; manifest; verify the data contract with real checks; derive access metadata; fixed splits |
 | P3 Baseline + access control | 6 | Keyword baseline; access-enforcement point; leakage suite = 0; first quality and latency numbers against the targets |
@@ -96,4 +96,4 @@ Like a senior team: **requirements first, then a living design doc (`docs/DESIGN
 **Cut order if time slips** (Rex decides each cut): semantic cache → model routing → Streamable HTTP → metadata filters → reranking → judge calibration beyond 30 labels. **Never cut:** data gate, frozen split, leakage = 0 gate, comparison table, injection suite with before/after, approval gate, PII redaction.
 
 ## Out of scope unless Rex decides otherwise
-Sending email, real authentication/SSO, multi-tenant deployment, web UI beyond a minimal demo, fine-tuning, local LLM inference. (Whether the raw Kaggle corpus is used, and how, is decided in P1.)
+Sending email, real authentication/SSO, multi-tenant deployment, web UI beyond a minimal demo, fine-tuning, local LLM inference. (The raw Kaggle corpus is not used; Rex's direction, 2026-10-22. Revisit only if Q2 finds EnronQA unusable.)
