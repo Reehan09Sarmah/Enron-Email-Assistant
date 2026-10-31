@@ -1,72 +1,34 @@
 # Design doc: permission-aware Enron mail assistant
 
-_Living document, written like an engineering RFC. Each section is filled in when the decision that owns it is accepted, and links to that decision. Nothing here is written ahead of a decision. Sections still empty show where the design is not yet settled._
+## 1. Problem
 
-**Status:** skeleton (2026-10-22). **Owner:** Rex. **Decisions:** see `decisions/README.md`.
+Companies now put AI assistants over employees' mail and documents, for example Microsoft 365 Copilot, Gemini in Google Workspace and Glean. The assistant searches the company's data, then answers. Two failures are documented:
 
-## 1. Problem and context
-_(from Decision 0001; see `docs/PROJECT_BRIEF.md`, "Business context")_
+1. Oversharing. Search over a shared index can show a user mail they should not see. Access has to be enforced inside the search, not checked afterwards.
+2. Mail as an attack. EchoLeak (CVE-2025-32711, June 2025) was a prompt injection in Microsoft 365 Copilot that needed no click. An attacker's email carried hidden instructions. When the victim later asked Copilot about internal data, Copilot read that email and leaked data through an image link that loaded by itself (source: arXiv 2509.10540).
 
-## 2. Goals and non-goals
-- Goals: _pending (requirements decision)_
-- Non-goals: _pending_
+The problem: build an assistant that answers a user's questions about their own mail, accurately, with citations, without ever showing another user's mail, and without being hijacked by what an email says. Each of those properties must be shown with numbers.
 
-## 3. Requirements
-### 3.1 Functional (user stories)
-_pending_
-### 3.2 Non-functional targets (each with a number and how it is measured)
-| Property | Target | Measured by | Decision |
-|---|---|---|---|
-| Cross-user leakage | 0 documents | leakage suite, CI gate | 0001 (fixed requirement) |
-| Retrieval quality | _pending_ | | |
-| Latency per query (p50 / p95) | _pending_ | | |
-| Cost per query | _pending_ | | |
-| Injection success rate | _pending_ | | |
-| Indexing time / memory on the laptop | _pending_ | | |
+## 2. Requirements
+Empty until decided.
 
-## 4. Constraints and back-of-envelope estimates
-_Corpus size, chunk counts, vector memory, embedding time (Colab vs CPU), API calls per eval run vs free-tier quota. Each estimate shows its arithmetic and is later checked against a real measurement._
+## 3. Data
+Empty until decided.
 
-## 5. Data
-### 5.1 Source, version, licence, manifest
-### 5.2 Data contract (schema, invariants, verified properties)
-### 5.3 Access model (who may see which email)
-### 5.4 Splits (dev / test / LLM-eval subset)
+## 4. Access rule
+Empty until decided.
 
-## 6. Architecture
-### 6.1 Overview diagram
-_Offline (ingest and index) path vs online (query) path; trust boundaries marked._
-### 6.2 Components and interfaces
-_Each component's input/output contract, so implementations can be swapped and compared (e.g. one retriever interface, many retrievers)._
+## 5. Evaluation
+Empty until decided.
 
-## 7. Key flows
-### 7.1 Ingest and index
-### 7.2 Answer a question
-### 7.3 Draft a reply (consequential action, approval)
+## 6. Sizes and costs
+Empty until decided.
 
-## 8. Retrieval design
-_Chunking, indexes, fusion, reranking, filters; the comparison table and why the chosen config won._
+## 7. Architecture
+Empty until decided.
 
-## 9. Access control design
-_Where enforcement happens and why; how identity is bound; leakage tests._
+## 8. Security
+Empty until decided.
 
-## 10. Generation, grounding and the agent loop
-_Provider interface, loop, state, stop conditions, citations, grounding check._
-
-## 11. Security
-_Threat model, trust boundaries, defence layers with before/after numbers, PII redaction, secrets._
-
-## 12. Evaluation
-_Metrics, datasets, judge and its calibration, gates._
-
-## 13. Observability and operations (LLMOps)
-_Trace schema, cost and latency accounting, caching, quotas, CI._
-
-## 14. Failure modes
-| Failure | Effect | Detection | Mitigation |
-|---|---|---|---|
-
-## 15. Alternatives considered
-_One line per rejected option, linking to its decision._
-
-## 16. Open questions and risks
+## 9. Results
+Empty until decided.
