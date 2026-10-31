@@ -76,3 +76,16 @@ Parquet layout (pyarrow footers, 2026-10-22): dev 73,772 rows in 74 row groups; 
 - Limits: the rate-limits page (https://ai.google.dev/gemini-api/docs/rate-limits) gives no fixed free numbers. It says limits depend on the account and are shown in AI Studio. Rex reads his own limits there; they are not recorded yet.
 - Using two accounts to add up free quota may break Google's terms (from memory, unchecked). Check before relying on it.
 - Enron mail has real people's details, so sending it to a free-tier key is a privacy question still to be settled.
+
+## Check results (2026-10-31)
+Scripts are in `scripts/data_checks/`, run with `python -m scripts.data_checks.<name>`. Full output is saved as JSON in `data/reports/` (git-ignored). Data: commit `c0b3a91…`. Nothing was changed in `data/raw/`. A row is named (file name, row index) in these checks; no email text is printed.
+
+**C1 rows_well_formed.** All 221,316 rows in the 4 files were read. None breaks any of the 15 rules: the 8 list columns all have the length `questions_count`; no empty email, path, user, question or gold answer; every email starts with `Subject:`; every path starts with the row's user and `/`. Peak memory 630 MB, 13 s (all 12 columns, 1,000 rows per batch). No FINDING.
+
+**C2 file_relationship.** Train, dev and test hold the same 73,772 (user, path) keys, each key once per split, and the email text is identical in all three splits. FINDING: 3,106 question fingerprints appear in more than one split, although the 6-offset sample check on 2026-10-22 saw none. Question fingerprints per split: train 329,940, dev 104,985, test 88,865. Peak memory 487 MB, 4 s.
+
+**C3 duplicate_emails.** Used dev only, because C2 confirmed the splits hold the same emails. All 73,772 emails are different from each other, both by full text and with the `File:` line removed: 0 duplicate groups, so 0 groups across users and 0 within one user. Peak memory 348 MB, 2 s. No FINDING.
+
+**C4 ids_and_headers.** Inside each split, `path` and (user, path) are unique. FINDING: across all 221,316 rows they repeat 147,544 times, which is 2 x 73,772, because each split repeats the same emails (the same fact as C2). Every split has 150 users, with 5 emails minimum and 5,485 maximum per user. FINDING: the median emails per user is 240.5 (the mean of the two middle users, 237 and 244), not 244; the earlier figure of 244 was probably the upper middle value. All 221,316 emails begin with the header block Subject, Sender, Recipients, File and then a line of `=`. The `File:` value contains the row's path in 100.0% of rows. The Recipients value is empty in 0.0% and contains `@` in 97.9% (216,696 rows). Peak memory 361 MB, 3 s.
+
+Memory note: decision 0002 set 1 GB as the limit for one check; all four stayed under it. C1 is the highest because it reads all 12 columns.

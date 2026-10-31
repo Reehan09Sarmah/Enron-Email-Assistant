@@ -14,7 +14,7 @@ Updated: 2026-10-31
 9. Build in small measured steps
 
 ## Next step
-Check the data one small check at a time (C1 to C4 first). Rex pastes his two Gemini keys into `.env` himself.
+Rex reviews C1–C4 results; then requirements.
 
 ## Decisions
 | # | Title | Date |
@@ -23,7 +23,11 @@ Check the data one small check at a time (C1 to C4 first). Rex pastes his two Ge
 | 0002 | Local parquet reader: pyarrow 26.0.0 | 2026-10-22 |
 
 ## Results log
-One line per measured result: date, data version, check, number.
+One line per measured result: date, data version (commit `c0b3a91`), check, number.
+- 2026-10-31, c0b3a91, C1 rows_well_formed: 221,316 rows read, 0 of 15 rules broken.
+- 2026-10-31, c0b3a91, C2 file_relationship: same 73,772 keys and emails in all splits; FINDING 3,106 question fingerprints in more than one split.
+- 2026-10-31, c0b3a91, C3 duplicate_emails (dev only): 73,772 unique emails, 0 duplicate groups, with or without the File: line.
+- 2026-10-31, c0b3a91, C4 ids_and_headers: all headers well formed; FINDING median emails per user is 240.5 (not 244), and path repeats 147,544 times across all splits (each split repeats the same emails).
 
 ## Open questions
 - The GitHub remote is still named `JobFit`. Reuse it (rename on GitHub) or start a new repo? Nothing is pushed until Rex decides.
@@ -34,6 +38,9 @@ One line per measured result: date, data version, check, number.
 - `.env` key names: `GEMINI_API_KEY_PAID` and `GEMINI_API_KEY_STUDENT`. `.env` is git-ignored; `.env.example` is tracked.
 - Raw data sits in `data/raw/enron_qa_0922/`, covered by the `/data/` rule in `.gitignore`. It was downloaded by hand so no download library was added.
 - Decision 0001 still says "no CUDA GPU". The laptop has an NVIDIA MX330 with 2 GB VRAM, too weak to plan around. Decisions are not edited, so this line is the correction.
+- `scripts/data_checks/`: shared reader and fingerprints in `common.py`, printing and JSON saving in `report.py`, one file per check. `report.py` is an extra file beyond the plan, so `common.py` keeps one purpose.
+- Checks read from `data/raw/enron_qa_0922/` (files sit directly in that folder). C4 reports per-split uniqueness next to the all-rows figure, to show where repeats come from.
+- `emails.csv/` (1.4 GB raw Kaggle file) appeared in the repo folder. It is not in `.gitignore`, so a plain `git add -A` hangs on it. Not committed, not touched.
 
 ## Hours
 | Date | Hours | What |
