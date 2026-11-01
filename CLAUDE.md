@@ -20,6 +20,7 @@ Anything costly to undo or that Rex must defend in an interview: data source, ac
 8. Never modify data/raw/.
 9. The laptop has 7.7 GB RAM with about 1.8 GB free. Read data in batches; never load a whole file.
 10. Say what you do not know. Label claims about libraries or data as checked (with source and version) or unchecked.
+11. Never run a command that reads data/raw/, data/work/ or any file over 50 MB. Rex runs those himself, because large scans make his laptop freeze. You may test scripts only on tiny synthetic files (under 2,000 rows) created in a temporary folder outside the repo and deleted afterwards.
 
 ## Code style
 Readability is a hard requirement. Rex dislikes messy files.

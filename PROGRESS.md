@@ -14,13 +14,14 @@ Updated: 2026-10-31
 9. Build in small measured steps
 
 ## Next step
-Rex reviews C1–C4 results; then requirements.
+Rex runs raw_index and R1-R4 (docs/HOW_TO_RUN.md), then reviews results.
 
 ## Decisions
 | # | Title | Date |
 |---|---|---|
 | 0001 | Project choice: permission-aware Enron mail assistant | 2026-10-22 |
 | 0002 | Local parquet reader: pyarrow 26.0.0 | 2026-10-22 |
+| 0003 | Progress bars with tqdm 4.70.1 | 2026-11-02 |
 
 ## Results log
 One line per measured result: date, data version (commit `c0b3a91`), check, number.
@@ -41,6 +42,13 @@ One line per measured result: date, data version (commit `c0b3a91`), check, numb
 - `scripts/data_checks/`: shared reader and fingerprints in `common.py`, printing and JSON saving in `report.py`, one file per check. `report.py` is an extra file beyond the plan, so `common.py` keeps one purpose.
 - Checks read from `data/raw/enron_qa_0922/` (files sit directly in that folder). C4 reports per-split uniqueness next to the all-rows figure, to show where repeats come from.
 - `emails.csv/` (1.4 GB raw Kaggle file) appeared in the repo folder. It is not in `.gitignore`, so a plain `git add -A` hangs on it. Not committed, not touched.
+- `data/work/` holds rebuildable caches (the raw index). Git-ignored through `/data/`.
+- Raw probe scripts R1-R4: `raw_csv.py` (reader from Rex's plan), `raw_index.py`, `raw_shape.py`, `raw_copies.py`, `join_to_enronqa.py`, `question_overlap.py`. Extra file `index_tables.py` holds the Message-ID grouping and buckets shared by R2 and R3. `expect_zero`, `info` and `share_row` moved into `report.py` for the new files; the older checks keep their own copies.
+- `raw_index` skips the CSV SHA-256 in a trial run (`--limit-rows`) so a trial takes seconds.
+- R3 unmatched paths are sorted into named patterns (trailing dot, maildir/ prefix, backslashes, letter case, unknown user folder) by trying each fix and looking the result up in the index.
+- R4 reads all three EnronQA splits, not only dev, because it follows up the C2 finding.
+- The raw CSV is expected at `data/raw/enron_kaggle/emails.csv` (path set in `common.py`).
+- Scripts were tested only on synthetic files in a temp folder (now deleted). None has run on real data.
 
 ## Hours
 | Date | Hours | What |

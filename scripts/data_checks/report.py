@@ -9,6 +9,23 @@ from scripts.data_checks.common import DATA_COMMIT, REPORT_DIR, peak_memory_mb
 RESULT_LABELS = {True: "ok", False: "FINDING", None: "info"}
 
 
+def format_count(value):
+    return f"{value:,}" if isinstance(value, int) else str(value)
+
+
+def expect_zero(rule, found):
+    return (rule, 0, format_count(found), found == 0)
+
+
+def info(rule, found):
+    return (rule, "info", format_count(found), None)
+
+
+def share_row(rule, count, total):
+    percent = 100 * count / total if total else 0
+    return info(rule, f"{percent:.1f}% ({count:,} of {total:,})")
+
+
 def run_check(name, check):
     """check() returns a dict: expects, found, table, sections, details."""
     started = time.perf_counter()

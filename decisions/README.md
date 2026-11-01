@@ -15,3 +15,4 @@ Rules:
 |---|-------|--------|------|
 | 0001 | Project choice: permission-aware Enron mail assistant | accepted | 2026-10-22 |
 | 0002 | Local parquet reader: pyarrow 26.0.0 | accepted | 2026-10-22 |
+| 0003 | Progress bars with tqdm 4.70.1 | accepted | 2026-11-02 |

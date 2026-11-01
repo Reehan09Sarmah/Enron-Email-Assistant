@@ -5,10 +5,14 @@ import hashlib
 from ctypes import wintypes
 from pathlib import Path
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = ROOT / "data" / "raw" / "enron_qa_0922"
+RAW_CSV_PATH = ROOT / "data" / "raw" / "enron_kaggle" / "emails.csv"
+WORK_DIR = ROOT / "data" / "work"
+INDEX_PATH = WORK_DIR / "raw_index.parquet"
 REPORT_DIR = ROOT / "data" / "reports"
 DATA_COMMIT = "c0b3a9190fd970e83cfbe7d399a08860e43e221e"
 BATCH_SIZE = 1000
@@ -34,8 +38,19 @@ def read_batches(file_name, columns):
             first_row += batch.num_rows
 
 
+def read_index_table(columns):
+    """Read some columns of the raw index, batch by batch, into one table."""
+    with pq.ParquetFile(INDEX_PATH) as parquet_file:
+        batches = parquet_file.iter_batches(batch_size=BATCH_SIZE, columns=columns)
+        return pa.Table.from_batches(list(batches))
+
+
 def fingerprint(text):
     return hashlib.blake2b(text.encode("utf-8"), digest_size=16).digest()
+
+
+def collapse_whitespace(text):
+    return " ".join(text.split())
 
 
 class _MemoryCounters(ctypes.Structure):
