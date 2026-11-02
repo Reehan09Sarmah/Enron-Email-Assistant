@@ -29,7 +29,7 @@ NAME = "body_diff"
 DEV_FILE = SPLIT_FILES["dev"][0]
 SEED = 42
 SAMPLE_SIZE = 200
-SIMILARITY_CHARS = 20_000
+SIMILARITY_CHARS = 10_000
 EXAMPLES_PER_GROUP = 10
 QA_IN_RAW = "EnronQA contained in raw"
 RAW_IN_QA = "raw contained in EnronQA"
@@ -103,6 +103,7 @@ def compare_bodies(qa_body, raw_body):
         "common_prefix": common_prefix_length(qa_text, raw_text),
         "common_suffix": common_prefix_length(qa_text[::-1], raw_text[::-1]),
         "similarity": matcher.ratio(),
+        "similarity_capped": max(len(qa_text), len(raw_text)) > SIMILARITY_CHARS,
         "group": containment_group(qa_text, raw_text),
     }
 
@@ -135,6 +136,10 @@ def summary_rows(sample, pairs):
         expect_zero("sampled keys not found in the raw CSV", missing),
         spread_row("length ratio EnronQA / raw", pairs, "length_ratio", 3),
         spread_row("similarity ratio", pairs, "similarity", 3),
+        info(
+            f"pairs where the ratio used only the first {SIMILARITY_CHARS:,} chars",
+            sum(pair["similarity_capped"] for pair in pairs),
+        ),
         spread_row("common prefix chars", pairs, "common_prefix", 1),
         spread_row("common suffix chars", pairs, "common_suffix", 1),
     ]
