@@ -18,6 +18,11 @@ Rex runs these himself. Claude only tests them on tiny fake files.
    4. `raw_copies`
    5. `join_to_enronqa`
    6. `question_overlap` (reads the EnronQA files only, not the index)
+   7. `body_copies` (R5; reads the index and the EnronQA dev `path` column). It needs
+      the `folder` column, so rerun step 2 once first if the index was built before
+      2026-11-02.
+   8. `body_diff` (R6; streams the whole CSV like `raw_index`, so close heavy apps
+      first). Takes `--block-mb` too. Comparing 200 pairs can take a few minutes.
 6. If `raw_index` says a message is bigger than the block, rerun it with `--block-mb 32`.
    If memory for `python.exe` goes above 1 GB, press Ctrl+C and tell Claude in the chat.
 7. Results are saved as JSON in `data\reports\`. The index is `data\work\raw_index.parquet`

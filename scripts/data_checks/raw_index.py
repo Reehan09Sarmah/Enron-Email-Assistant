@@ -26,6 +26,7 @@ INDEX_SCHEMA = pa.schema(
     [
         ("row", pa.int64()),
         ("user", pa.string()),
+        ("folder", pa.string()),
         ("file_fp", pa.binary()),
         ("message_id_fp", pa.binary()),
         ("body_fp", pa.binary()),
@@ -56,6 +57,10 @@ def read_headers(header_block):
     return headers
 
 
+def folder_of(file_value):
+    return "/".join(file_value.split("/")[1:-1])
+
+
 def summarise_message(row_number, file_value, message):
     header_block, body = split_message(message)
     headers = read_headers(header_block)
@@ -64,6 +69,7 @@ def summarise_message(row_number, file_value, message):
     return {
         "row": row_number,
         "user": file_value.split("/", 1)[0],
+        "folder": folder_of(file_value),
         "file_fp": fingerprint(file_value),
         "message_id_fp": None if message_id is None else fingerprint(message_id),
         "body_fp": fingerprint(body),

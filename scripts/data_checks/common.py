@@ -41,7 +41,10 @@ def read_batches(file_name, columns):
 def read_index_table(columns):
     """Read some columns of the raw index, batch by batch, into one table."""
     with pq.ParquetFile(INDEX_PATH) as parquet_file:
-        batches = parquet_file.iter_batches(batch_size=BATCH_SIZE, columns=columns)
+        missing = sorted(set(columns) - set(parquet_file.schema_arrow.names))
+        if missing:
+            raise SystemExit(f"The index has no column {missing}. Rerun raw_index.")
+        batches =parquet_file.iter_batches(batch_size=BATCH_SIZE, columns=columns)
         return pa.Table.from_batches(list(batches))
 
 

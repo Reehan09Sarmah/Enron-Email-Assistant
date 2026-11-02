@@ -9,7 +9,7 @@ Facts about the EnronQA data and the Gemini API. Each fact says how it was check
 - Commit sha: `c0b3a9190fd970e83cfbe7d399a08860e43e221e`, last modified 2024-09-22.
 - Downloaded: 2026-10-22, by hand from the browser, to `data/raw/enron_qa_0922/` (git-ignored). Never edit the files there.
 - Licence: not stated on the dataset repo (no licence field). The paper is CC BY 4.0, but that covers the paper, not necessarily the data. The Library of Congress warns that privacy rights may apply to the original corpus.
-- Raw Kaggle CSV: not used (Rex, 2026-10-22).
+- Raw Kaggle CSV: not chosen as a data source (Rex, 2026-10-22). It is only probed by checks R1 to R6; see "Raw Kaggle data" below.
 - Hugging Face discussions (read 2026-10-22, all 4 open):
   - #1: the owner (MichaelR207) says `include_email` is a leftover of an unpublished training experiment, randomly assigned, and can be ignored for retrieval.
   - #2: asks about "singlehop and multihop" questions (not read).
@@ -48,6 +48,12 @@ The types of the list columns beyond "list" were not recorded.
 
 Parquet layout (pyarrow footers, 2026-10-22): dev 73,772 rows in 74 row groups; test 73,772 rows in 74; train 36,886 + 36,886 rows in 37 + 37. Each row group holds up to 1,000 rows (smallest 772).
 
+## Raw Kaggle data
+- File: `data/raw/enron_kaggle/emails.csv` (git-ignored through `/data/`), 1,426,122,219 bytes, SHA-256 `a605f0a2ca4a4feaa557eb0f2be825914906dca816066d7e58983e7e2e8bd274` (computed by `raw_index`, 2026-11-02).
+- Columns: `file` (the mailbox path) and `message` (headers and body in one string).
+- Which Kaggle page it came from, its version and its licence were not recorded.
+- Never edited. The scripts read it in 16 MB blocks and keep only fingerprints in `data/work/raw_index.parquet`, a cache that can be rebuilt.
+
 ## What we know
 - Three splits (train, dev, test) of 73,772 rows each, 12 columns (Hugging Face Dataset Viewer API, same commit as our files; footers agree).
 - The `email` and `path` length statistics are identical in all three splits, and the per-user row counts are identical in all three splits. So the three splits appear to hold the same 73,772 emails and divide each email's questions between them. The split looks like a question split, not an email split.
@@ -57,17 +63,24 @@ Parquet layout (pyarrow footers, 2026-10-22): dev 73,772 rows in 74 row groups; 
 - 73,772 emails carry questions; the paper's corpus is 103,638 emails. So about 29,866 emails (29%) are not in this repo. Likely they are emails without a surviving question (unchecked).
 - Sample check (Viewer API, 2026-10-22, 6 random offsets, seed 42, 3 requests each, 14 seconds): at every offset the email, path and user are identical in train, dev and test; no question text is shared between splits; all question, answer and rationale lists have equal length; the path owner equals `user`; every email starts with a `Subject:` header. Questions per email were 11/2/2, 5/2/2 and 3/1/1 (train/dev/test), so a heavily questioned email gives most of its questions to train. 6 of 6 passed. This is too small to be a proof.
 - Memory (pyarrow 26.0.0, decision 0002): streaming only `user` across all 73,772 dev rows peaked at 37 MB. One batch of 1,000 `email` values (1.94 million characters) peaked at 49 MB.
+- The three splits hold the same 73,772 emails, so one email is one (user, path) key repeated once per split (C2, C4, 2026-10-31).
+- The raw CSV has 517,401 messages from 150 users. Every message has a Message-ID, Date and From header; 95.8% have To. Emails per user: 35 / 1,652 / 28,465 (min / median / max), against 5 / 240.5 / 5,485 in EnronQA. No message and no body is empty (R1, 2026-11-02).
+- Every raw Message-ID is unique, so Message-ID cannot link copies across mailboxes (R2).
+- All 73,772 EnronQA (user, path) keys match one raw `file` value exactly, and raw `file` values are unique, so `path` is a working join key. EnronQA holds 73,772 of the 517,401 raw messages (14.3%) (R3).
+- The EnronQA body and the raw body of the same key are never identical: 0 of 73,772, also with whitespace collapsed (R3).
+- The 3,106 questions shared by several splits all sit on different emails, never on the same email in two splits, so there is no test-to-dev leak through them (R4).
 
 ## What we do not know yet
-- Whether the three splits really hold the same emails, row by row, and whether any question text is shared between splits.
-- Whether rows are emails or (email, user) pairs, since 3 x 73,772 = 221,316 rows against the paper's 103,638 emails.
-- Why 29,866 emails are missing from this repo, and whether they matter.
-- The licence of the data.
-- Whether dedup collapsed copies of one message held by several users.
+- Why the EnronQA body differs from the raw body for every key. EnronQA may be a cleaned version of the raw text, or our way of cutting the two bodies may be wrong (unchecked). R6 measures 200 pairs.
+- Where the paper's copies went. Its dedup (517k to 228k) implies copies exist, but Message-IDs are unique, so copies must carry different Message-IDs (unchecked). R5 looks for identical bodies in several mailboxes.
+- Whether the same message is held in several mailboxes under different Message-IDs, and how many other users hold a copy of an EnronQA email. R3 looked only through Message-ID and found none; R5 asks again through the body.
+- How the 3,106 shared questions affect scoring. Of them, 2,389 occur on 2 different emails, 564 on 3 to 5, 104 on 6 to 10 and 49 on more than 10, so generic questions exist that have no single correct email. Whether those emails are near-copies of each other is unchecked.
+- Why 29,866 emails are missing from this repo, and whether they matter. Only 14.3% of the raw messages are in EnronQA.
+- The licence of the data, for both EnronQA and the Kaggle file.
 - Whether the paper's 50 to 1,000 word filter makes this corpus cleaner than real mail, so that retrieval numbers look better than they would on real inboxes.
 - Whether near-duplicates below the paper's 0.9 threshold make "one correct email per question" too strict.
 - How much label noise the LLM-written questions carry.
-- Whether the raw Kaggle corpus could be joined through `path` (join key unchecked). Rex's question of 2026-10-22: what if mistakes in this clean dataset snowball into later decisions?
+- Rex's question of 2026-10-22: what if mistakes in this clean dataset snowball into later decisions? The join to the raw mail now exists, but until R6 explains the body differences it cannot check the EnronQA text.
 
 ## API keys and tiers
 - Keys: Rex has two Gemini API keys, one from a student Pro account and one from a paid Pro account. Names in `.env.example`: `GEMINI_API_KEY_PAID` and `GEMINI_API_KEY_STUDENT`. The values live only in `.env`.
@@ -89,3 +102,18 @@ Scripts are in `scripts/data_checks/`, run with `python -m scripts.data_checks.<
 **C4 ids_and_headers.** Inside each split, `path` and (user, path) are unique. FINDING: across all 221,316 rows they repeat 147,544 times, which is 2 x 73,772, because each split repeats the same emails (the same fact as C2). Every split has 150 users, with 5 emails minimum and 5,485 maximum per user. FINDING: the median emails per user is 240.5 (the mean of the two middle users, 237 and 244), not 244; the earlier figure of 244 was probably the upper middle value. All 221,316 emails begin with the header block Subject, Sender, Recipients, File and then a line of `=`. The `File:` value contains the row's path in 100.0% of rows. The Recipients value is empty in 0.0% and contains `@` in 97.9% (216,696 rows). Peak memory 361 MB, 3 s.
 
 Memory note: decision 0002 set 1 GB as the limit for one check; all four stayed under it. C1 is the highest because it reads all 12 columns.
+
+## Check results R1-R4 (2026-11-02)
+Rex ran these himself; the numbers come from the JSON files in `data/reports/`. Data: EnronQA commit `c0b3a91…` and the raw Kaggle CSV above. Nothing was changed in `data/raw/`. No email text was printed.
+
+**raw_index.** The CSV was read in 16 MB blocks into an index of fingerprints: 517,401 rows, 85.1 s, peak memory 815 MB. This also gave the file size and SHA-256 above.
+
+**R1 raw_shape.** 517,401 rows from 150 users. All rows have a Message-ID, Date and From header (100%); 495,554 (95.8%) have a To header. Emails per user: 35 minimum, 1,652 median, 28,465 maximum. 0 empty messages and 0 empty bodies. Peak memory 103 MB, 2.7 s. No FINDING.
+
+**R2 raw_copies.** FINDING: every Message-ID is unique (517,401 distinct in 517,401 rows), so none appears in a second row or a second mailbox. Message-ID therefore cannot link copies across mailboxes in this corpus. The paper's dedup (517k to 228k) implies copies exist, so they must carry different Message-IDs. Peak memory 513 MB, 2.1 s.
+
+**R3 join_to_enronqa.** All 73,772 EnronQA dev (user, path) keys match a raw `file` value, with no path fix needed, and no raw `file` value is shared by two rows. FINDING: 0 of 73,772 bodies are identical, also after collapsing whitespace. The cause is not known yet (see "What we do not know yet"). EnronQA holds 73,772 of the 517,401 raw messages (14.3%); the other 443,629 messages from the same 150 users are not in it. Because Message-IDs are unique, all 73,772 matched emails show 0 other users holding a copy through Message-ID. Peak memory 675 MB, 9.6 s.
+
+**R4 question_overlap.** The 3,106 shared questions from C2 were found again. FINDING: none of them sits on the same email in two splits (0 same-key cases), so there is no leak from test to dev through them; they all sit on different emails. A shared question occurs on 2 different emails in 2,389 cases, on 3 to 5 in 564, on 6 to 10 in 104 and on more than 10 in 49. So generic questions exist that have no single correct email. Peak memory 183 MB, 18.4 s.
+
+R5 (body_copies) and R6 (body_diff) are written and tested on synthetic files only. They have not run on real data.
