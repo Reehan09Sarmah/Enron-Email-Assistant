@@ -27,3 +27,18 @@ Rex runs these himself. Claude only tests them on tiny fake files.
    If memory for `python.exe` goes above 1 GB, press Ctrl+C and tell Claude in the chat.
 7. Results are saved as JSON in `data\reports\`. The index is `data\work\raw_index.parquet`
    and can be rebuilt at any time.
+
+## Running R5 and R6 (copy and paste)
+Do the checks above first. Close heavy apps, then run these in order from
+`E:\PROJECTS\Email Assistant`:
+
+1. Rebuild the index (needed once, it adds the `folder` column; about 90 seconds):
+   `.\.venv\Scripts\python.exe -m scripts.data_checks.raw_index`
+2. R5, body copies (fast, reads only the index and the EnronQA dev `path` column):
+   `.\.venv\Scripts\python.exe -m scripts.data_checks.body_copies`
+3. R6, body diff (reads the whole CSV again, about 90 seconds, then compares 200 pairs):
+   `.\.venv\Scripts\python.exe -m scripts.data_checks.body_diff`
+
+R5 saves `data\reports\body_copies.json` and R6 saves `data\reports\body_diff.json`.
+R6 never prints or saves email text; open the example keys it lists to look yourself.
+If R5 says "The index has no column ['folder']", redo step 1.
