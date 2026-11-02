@@ -14,7 +14,7 @@ Updated: 2026-11-02
 9. Build in small measured steps
 
 ## Next step
-Rex reruns raw_index (the index gained a `folder` column), then runs R5 and R6 (docs/HOW_TO_RUN.md; close heavy apps for both) and reviews the results.
+Requirements: study, then decide; then the data decision.
 
 ## Decisions
 | # | Title | Date |
@@ -34,6 +34,8 @@ One line per measured result: date, data version (commit `c0b3a91`), check, numb
 - 2026-11-02, c0b3a91, R2 raw_copies: FINDING all 517,401 Message-IDs are unique, so they cannot link copies across mailboxes.
 - 2026-11-02, c0b3a91, R3 join_to_enronqa: all 73,772 keys match a raw file value; FINDING 0 bodies identical, also after collapsing whitespace; EnronQA holds 14.3% of the raw messages.
 - 2026-11-02, c0b3a91, R4 question_overlap: FINDING the 3,106 shared questions all sit on different emails (0 on the same email in two splits); 2,389 on 2 emails, 564 on 3-5, 104 on 6-10, 49 on more than 10.
+- 2026-11-02, c0b3a91, R5 body_copies: 517,401 rows hold 243,509 distinct bodies; 17,236 held by 2 or more users (500 by more than 10); 61,283 mix a sent folder with other folders; 5,252 of 73,772 dev emails (7.1%) have an exact copy with another user (lower bound).
+- 2026-11-02, c0b3a91, R6 body_diff: FINDING in all 200 sampled pairs (seed 42) the raw body sits inside the EnronQA body; EnronQA is longer by 23 to 38 characters at the end (a closing line of "=" confirmed by hand on one email); similarity 0.968 / 0.986 / 1.000. EnronQA did not edit the email text (sample; exact equality not tested).
 
 ## Open questions
 - The GitHub remote is still named `JobFit`. Reuse it (rename on GitHub) or start a new repo? Nothing is pushed until Rex decides.
