@@ -1,0 +1,42 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Packaging / build output
+build/
+dist/
+*.egg-info/
+
+# Secrets (API keys, tokens)
+.env
+.env.*
+!.env.example
+
+# Personal data: resumes, job descriptions, generated reports. Anchored to the repo root
+# so test fixtures like tests/fixtures/fake_resumes/ are NOT ignored. Never commit these.
+/resumes/
+/jobs/
+/reports/
+/data/
+
+# Agent trace logs and any log file
+/logs/
+*.log
+
+# Editor / local tool settings
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
