@@ -14,7 +14,7 @@ Updated: 2026-11-02
 9. Build in small measured steps
 
 ## Next step
-Rex runs date_gaps (R7); then decide 0007 (same-message rule); then the build script.
+Rex runs same_message_check (R8) and fills `rex_label` in the audit file (docs/HOW_TO_RUN.md); then decide 0007 (same-message rule); then the build script.
 
 ## Decisions
 | # | Title | Date |
@@ -67,6 +67,9 @@ One line per measured result: date, data version (commit `c0b3a91`), check, numb
 - R6 saves per-pair numbers and (user, path) in its JSON, never text.
 - 2026-11-06: `main` was rebuilt as an orphan history (first commit = the tree of the reset commit 599dc83, then the later commits cherry-picked), so all hashes changed. The old line stays local as branch `jobfit-full-history` (no upstream) and tag `v1-jobfit-archive`; neither is ever pushed. Remotes: `origin` = Enron-Email-Assistant, `jobfit` = old JobFit repo (nothing pushed to it). Commit hashes in older lines of this file refer to the old line.
 - R7 `date_gaps.py` compares the date as collapsed text (so a pure formatting difference lands in the "0 s" bucket), sender lower-cased, subject as collapsed text. Whole-hour gap buckets cover 1 to 14 hours only; a whole-hour gap of 15 to 23 hours is "other under 24 hours". Copies are cut to the 20 lowest row numbers per group, so a capped group may keep a single user. A group with fewer than 2 parsed dates goes to "fewer than 2 dates parsed". The JSON lists, per bucket, the row numbers of up to 10 example groups (all kept rows of each group). It stops with a message if an index row is missing from the CSV.
+- R8 `same_message_check.py`, `same_message_audit.py` (audit CSV) and the shared `shared_groups.py` (group selection, header reading, one CSV pass). `date_gaps.py` now imports from `shared_groups.py`; its output on the synthetic test is unchanged. Groups are now ordered by first row, so example row lists are stable.
+- R8 memory: the index table is released before the CSV pass and R8 keeps only fingerprints and the date as a number per copy, not the text. The real values for the audit are read in a second CSV pass limited to the 80 audit groups. The memory result is not measured (Claude may not run on real data); Rex's run will show it.
+- R8 choices: reference copy = earliest copy in a folder containing "sent", else the earliest copy. Shifts are signed (copy minus reference). Remainder and shift tables use date-only groups (same sender and subject, different date text) and copies up to 14 hours from the reference. Gap bucket "whole hours 1-14" ignores the zone label. The audit sample is drawn from all groups with that gap bucket, by seed 11. Cells starting with = + - @ get a leading space so Excel does not read them as formulas. The audit file is written with a UTF-8 byte-order mark so Excel reads it correctly.
 - An untracked file `data_test.py` sits in the repo root. It is not Claude's and was not touched or committed.
 
 ## Hours

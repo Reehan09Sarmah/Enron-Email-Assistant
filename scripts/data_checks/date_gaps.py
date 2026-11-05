@@ -1,36 +1,28 @@
 """R7: how the copies of one body differ in date, sender and subject."""
 
 import argparse
-import re
-from bisect import bisect_left
 from collections import Counter, defaultdict
-from datetime import timezone
-from email.parser import HeaderParser
-from email.utils import parsedate_to_datetime
 from functools import partial
 
-import pyarrow as pa
-import pyarrow.compute as pc
-
-from scripts.data_checks.common import (
-    RAW_CSV_PATH,
-    collapse_whitespace,
-    read_index_table,
-)
-from scripts.data_checks.raw_csv import DEFAULT_BLOCK_MB, iter_raw_batches
-from scripts.data_checks.raw_index import split_message
+from scripts.data_checks.raw_csv import DEFAULT_BLOCK_MB
 from scripts.data_checks.report import info, run_check, share_row
+from scripts.data_checks.shared_groups import (
+    MAX_ROWS_PER_GROUP,
+    header_value,
+    load_groups,
+    parse_instant,
+    parse_message,
+    read_summaries,
+    zone_label,
+)
 
 NAME = "date_gaps"
-COLUMNS = ["row", "user", "body_collapsed_fp"]
 EXPECTED_GROUPS = 17_236
-MAX_ROWS_PER_GROUP = 20
 EXAMPLES_PER_BUCKET = 10
 SECONDS_PER_HOUR = 3600
 SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
 MAX_ZONE_HOURS = 14
 RECIPIENT_HEADERS = ["to", "cc", "bcc", "x-to", "x-cc", "x-bcc"]
-ZONE_AFTER_TIME = re.compile(r"\d{1,2}:\d{2}(?::\d{2})?\s*(.*)$")
 
 NOTHING = "nothing differs"
 DATE_ONLY = "date only"
@@ -56,84 +48,22 @@ GAP_BUCKETS = [
 ]
 
 
-def find_shared_rows(index):
-    """Index rows whose body is held by 2 or more users."""
-    per_body = index.group_by("body_collapsed_fp").aggregate(
-        [("user", "count_distinct")]
-    )
-    shared = per_body.filter(pc.greater_equal(per_body["user_count_distinct"], 2))
-    return index.join(
-        shared.select(["body_collapsed_fp"]),
-        keys="body_collapsed_fp",
-        join_type="left semi",
-    )
-
-
-def group_rows(shared_rows):
-    """One list of (row, user) per body, first rows kept; also the capped count."""
-    by_body = defaultdict(list)
-    columns = ["body_collapsed_fp", "row", "user"]
-    for body, row, user in zip(*(shared_rows[name].to_pylist() for name in columns)):
-        by_body[body].append((row, user))
-
-    groups = [sorted(members) for members in by_body.values()]
-    capped = sum(1 for members in groups if len(members) > MAX_ROWS_PER_GROUP)
-    return [members[:MAX_ROWS_PER_GROUP] for members in groups], capped
-
-
-def parse_instant(date_text):
-    try:
-        moment = parsedate_to_datetime(date_text)
-    except (TypeError, ValueError):
-        return None
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    return int(moment.timestamp())
-
-
-def zone_label(date_text):
-    match = ZONE_AFTER_TIME.search(date_text)
-    return match.group(1) if match else ""
-
-
 def summarise_headers(message):
-    header_block, body = split_message(message)
-    headers = HeaderParser().parsestr(header_block, headersonly=True)
-
-    def value(name):
-        return collapse_whitespace(str(headers.get(name, "")))
-
-    date_text = value("date")
-    cc, bcc = value("cc"), value("bcc")
+    headers, body = parse_message(message)
+    date_text = header_value(headers, "date")
+    cc, bcc = header_value(headers, "cc"), header_value(headers, "bcc")
     both_present = "cc" in headers and "bcc" in headers
+    filled = {name: bool(header_value(headers, name)) for name in RECIPIENT_HEADERS}
     return {
-        "sender": value("from").lower(),
-        "subject": value("subject"),
+        "sender": header_value(headers, "from").lower(),
+        "subject": header_value(headers, "subject"),
         "date_text": date_text,
         "instant": parse_instant(date_text),
         "zone": zone_label(date_text),
         "body_chars": len(body),
-        "filled": {name: bool(value(name)) for name in RECIPIENT_HEADERS},
+        "filled": filled,
         "bcc_equals_cc": (cc == bcc) if both_present else None,
     }
-
-
-def read_summaries(wanted_rows, block_mb):
-    ordered = sorted(wanted_rows)
-    summaries = {}
-    first_row = 0
-
-    for batch in iter_raw_batches(RAW_CSV_PATH, block_mb):
-        start = bisect_left(ordered, first_row)
-        stop = bisect_left(ordered, first_row + batch.num_rows)
-        rows = ordered[start:stop]
-        if rows:
-            offsets = pa.array([row - first_row for row in rows])
-            messages = batch.column("message").take(offsets).to_pylist()
-            for row, message in zip(rows, messages):
-                summaries[row] = summarise_headers(message or "")
-        first_row += batch.num_rows
-    return summaries
 
 
 def classify_differences(records):
@@ -169,13 +99,13 @@ def gap_bucket(records):
 
 def owner_holds_two_dates(members, records):
     dates_by_user = defaultdict(set)
-    for (_, user), record in zip(members, records):
-        dates_by_user[user].add(record["date_text"])
+    for copy, record in zip(members, records):
+        dates_by_user[copy.user].add(record["date_text"])
     return any(len(dates) > 1 for dates in dates_by_user.values())
 
 
 def describe_group(members, summaries):
-    records = [summaries[row] for row, _ in members]
+    records = [summaries[copy.row] for copy in members]
     kind = classify_differences(records)
     is_date_only = kind == DATE_ONLY
     return {
@@ -183,7 +113,7 @@ def describe_group(members, summaries):
         "bucket": gap_bucket(records) if is_date_only else None,
         "resend": is_date_only and owner_holds_two_dates(members, records),
         "length_differs": len({record["body_chars"] for record in records}) > 1,
-        "rows": [row for row, _ in members],
+        "rows": [copy.row for copy in members],
     }
 
 
@@ -236,9 +166,9 @@ def collect_examples(described):
 
 
 def check(args):
-    groups, capped = group_rows(find_shared_rows(read_index_table(COLUMNS)))
-    wanted = {row for members in groups for row, _ in members}
-    summaries = read_summaries(wanted, args.block_mb)
+    groups, capped = load_groups()
+    wanted = {copy.row for members in groups for copy in members}
+    summaries = read_summaries(wanted, args.block_mb, summarise_headers)
     if len(summaries) != len(wanted):
         raise SystemExit("The index does not match the CSV. Rerun raw_index.")
 

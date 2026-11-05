@@ -49,3 +49,16 @@ Close heavy apps first. It needs the index from `raw_index` (built after 2026-11
 `.\.venv\Scripts\python.exe -m scripts.data_checks.date_gaps`
 
 It prints counts only and saves `data\reports\date_gaps.json`, which also holds example row numbers per gap bucket. If it says "The index does not match the CSV", rerun `raw_index`. It takes `--block-mb` like `raw_index`.
+
+## Running R8 (same_message_check) and filling the audit file
+Close heavy apps first, and watch `python.exe` in Task Manager. It reads the CSV twice (once for all groups, once for the 80 audit groups), so it takes about 3 minutes. If memory goes above 900 MB, press Ctrl+C and tell Claude in the chat. A smaller `--block-mb 8` uses less memory but stops with a message if one email is bigger than the block.
+
+`.\.venv\Scripts\python.exe -m scripts.data_checks.same_message_check`
+
+It prints counts only and saves `data\reports\same_message_check.json`. It also writes `data\audit\same_message_audit.csv`, a local file with the real sender, subject, date and recipients of 80 sampled groups (30 with a whole-hour gap, 30 with another gap under 24 hours, 20 with a gap of a day or more). That file stays on your laptop (git-ignored); do not share it or paste it into the chat.
+
+To fill it in:
+1. Open `E:\PROJECTS\Email Assistant\data\audit\same_message_audit.csv` in Excel (double-click, or Excel > Data > From Text/CSV and choose UTF-8).
+2. Each audit group is a block of rows with the same `audit_group` number. Read the rows of a block together and decide: are these copies of the same message, or different messages?
+3. Type `same` or `different` in the `rex_label` column on the first row of each block only. Leave the other rows empty.
+4. Save with Ctrl+S and choose to keep the CSV format (CSV UTF-8 if offered), then close Excel. Tell Claude in the chat that the file is filled in; Claude counts the labels without printing any text.
