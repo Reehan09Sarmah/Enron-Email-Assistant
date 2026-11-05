@@ -69,11 +69,13 @@ Parquet layout (pyarrow footers, 2026-10-22): dev 73,772 rows in 74 row groups; 
 - All 73,772 EnronQA (user, path) keys match one raw `file` value exactly, and raw `file` values are unique, so `path` is a working join key. EnronQA holds 73,772 of the 517,401 raw messages (14.3%) (R3).
 - The EnronQA body and the raw body of the same key are never identical: 0 of 73,772, also with whitespace collapsed (R3). R6 explains this: EnronQA adds a closing line to the end of the raw body (see "Check results R5-R6").
 - The same body text often sits in several mailboxes. 17,236 of 243,509 distinct bodies are held by 2 or more users, and 5,252 of the 73,772 EnronQA dev emails (7.1%) have an exact copy with another user (R5). This counts exact copies after whitespace collapse only, so it is a lower bound.
+- Copies of one body are mostly the same message by their headers. In a sample of 1,500 groups held by 2+ users (header probe, 2026-11-06), the sender differs in 4.8%, the subject in 3.5% and the date text in 22.3%, and the date difference is not a formatting difference. A rule of body + sender + subject + date splits 346 of the 1,500 groups, while body alone splits none.
 - EnronQA's cleaning chose which emails to keep but did not edit their text, so its questions and answers fit the raw text. Evidence: in all 200 sampled pairs (seed 42) the raw body sits inside the EnronQA body after whitespace collapse (R6), and Rex confirmed by hand on one email that the extra tail is only a closing line of "=" characters. Limits: a sample of 200, containment and not exact equality, and nobody has compared the questions with the raw text (unchecked).
 - The 3,106 questions shared by several splits all sit on different emails, never on the same email in two splits, so there is no test-to-dev leak through them (R4).
 
 ## What we do not know yet
 - Whether the EnronQA body equals the raw body plus the closing line exactly. Only containment after whitespace collapse was tested, on 200 pairs. In 3 of them the shared start covers less than 90% of the raw length, and the length gap runs from 23 to 38 characters rather than a constant 37 or 38, so something besides the closing line may differ (unchecked). Rex checked one email by hand.
+- Why the dates of copies differ in 22.3% of the sampled groups. Examples hint at re-sends, shifted clocks and one email filed in two folders of the same person, but none of this is counted. R7 measures the gaps. Which rule decides "the same message" is open (PROGRESS.md, 0007).
 - How many of the 5,252 dev emails with a copy elsewhere are real forwarded or shared copies, and how many are short or generic text that several people wrote or received separately (unchecked). This matters for the access rule, because a copy held by another user is the same text in two mailboxes.
 - How many copies exist beyond the exact ones. R5 counts exact copies only, and the paper's MinHash dedup also merged near-copies. Our 243,509 distinct bodies against the paper's 228k after dedup fits that, but the comparison is unchecked.
 - How the 3,106 shared questions affect scoring. Of them, 2,389 occur on 2 different emails, 564 on 3 to 5, 104 on 6 to 10 and 49 on more than 10, so generic questions exist that have no single correct email. Whether those emails are near-copies of each other is unchecked.
@@ -88,7 +90,7 @@ Parquet layout (pyarrow footers, 2026-10-22): dev 73,772 rows in 74 row groups; 
 - Keys: Rex has two Gemini API keys, one from a student Pro account and one from a paid Pro account. Names in `.env.example`: `GEMINI_API_KEY_PAID` and `GEMINI_API_KEY_STUDENT`. The values live only in `.env`.
 - Google's terms (checked at https://ai.google.dev/gemini-api/terms): on the unpaid tier Google may use prompts and responses to improve its products and human reviewers may read them, and the terms say not to submit sensitive, confidential or personal information. The paid tier (a Cloud project with billing on) does not train on your data. Exception: in the EEA, Switzerland and the UK the paid terms apply to free use too.
 - A consumer Pro subscription alone does not make API use paid. The API counts as paid only when the key's Cloud project has active billing (checked in the terms' definition). Whether either of Rex's projects has billing is unknown.
-- Limits: the rate-limits page (https://ai.google.dev/gemini-api/docs/rate-limits) gives no fixed free numbers. It says limits depend on the account and are shown in AI Studio. Rex reads his own limits there; they are not recorded yet.
+- Limits: the rate-limits page (https://ai.google.dev/gemini-api/docs/rate-limits) gives no fixed free numbers. It says limits depend on the account and are shown in AI Studio. Rex read his own limits there on 2026-11-06 (model names as he read them, not checked by Claude): Gemini 2.5 Flash, 3 Flash, 3.6 Flash and 3.8 Flash each 5 requests per minute, 250K tokens per minute, 20 requests per day; Gemini 3.5 Flash Lite 15 per minute, 250K tokens per minute, 500 per day; Gemma 4 26B 30 per minute, 16K tokens per minute, 14.4K per day. See decision 0004.
 - Using two accounts to add up free quota may break Google's terms (from memory, unchecked). Check before relying on it.
 - Enron mail has real people's details, so sending it to a free-tier key is a privacy question still to be settled.
 
@@ -126,3 +128,23 @@ Rex ran these himself; the numbers come from `data/reports/body_copies.json` and
 **R6 body_diff.** For 200 dev keys chosen with seed 42, all found in the raw CSV, the raw body is contained in the EnronQA body in all 200 pairs after whitespace collapse (0 the other way, 0 neither). EnronQA is longer in all 200, by 23 to 38 characters; 38 is the most common gap (59 pairs), then 37 (44), 36 (34) and 35 (21), so 37 or 38 covers 103 of 200. Similarity (first 10,000 characters, 3 pairs hit that cap) is 0.968 / 0.986 / 1.000 (min / median / max). The text shared at the start reaches at least 95% of the raw length in 182 pairs (approximate, because the raw length is counted before whitespace collapse), and only 3 pairs share 30 or more characters at the end, so the extra text mostly sits at the end. Peak memory 759 MB, 39.8 s.
 
 Confirmed by Rex by hand (2026-11-02, one email): the extra tail is a closing line of 37 "=" characters, the same separator EnronQA puts after the header. FINDING: EnronQA did not cut or rewrite email text. Its body is the raw body plus this closing line. Exact equality after removing the line was not tested; containment was tested after whitespace collapse.
+
+## Header probe (2026-11-06, Rex ran it from a pasted snippet, masked output)
+Sample: 1,500 random groups of identical (whitespace-collapsed) body text held by 2 or more users, seed 7, up to 12 rows per group. Numbers only; no email text or names. Claude did not run it, and the snippet is not stored in the repo.
+
+**Headers.** These headers are present in 100% of the sampled messages: date, message-id, subject, from, mime-version, content-type, content-transfer-encoding, x-to, x-cc, x-bcc, x-origin, x-filename, x-from and x-folder. To is present in 91.8%, Cc in 33.9% and Bcc in 33.9%.
+
+**What differs between copies of one body.** The sender differs in 72 groups (4.8%; the same with case ignored). The subject differs in 52 (3.5%; 51 with "Re:" and "Fw:" ignored). The date text differs in 334 (22.3%); the count is the same when dates are compared as UTC instants, so the difference is not a formatting difference.
+
+**How well each candidate rule keeps copies together.** A group is whole when the rule keeps all its copies together.
+- Body only: 1,500 groups whole, 0 split.
+- Body + sender + subject + date: 1,154 whole, 346 split, and 611 copies cut off from their group.
+- Using UTC instants for the date, or ignoring "Re:" and "Fw:" in the subject, gives identical numbers.
+
+**Observations** (read from examples; unchecked, not counted):
+- Some groups hold the same body under different subjects, probably templates or messages that carry only an attachment.
+- One group shows a re-send of the same text three days later in the same mailbox.
+- Two other groups show dates that differ by exactly 3 and 4 hours with the same zone label, possibly shifted clocks.
+- One email can sit in two folders of the same person, so copies are not people: 12 copies were 6 people in one example.
+
+R7 (`date_gaps`) is written and tested on synthetic files only. It has not run on real data.

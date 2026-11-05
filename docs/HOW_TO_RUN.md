@@ -42,3 +42,10 @@ Do the checks above first. Close heavy apps, then run these in order from
 R5 saves `data\reports\body_copies.json` and R6 saves `data\reports\body_diff.json`.
 R6 never prints or saves email text; open the example keys it lists to look yourself.
 If R5 says "The index has no column ['folder']", redo step 1.
+
+## Running R7 (date_gaps)
+Close heavy apps first. It needs the index from `raw_index` (built after 2026-11-02 is fine). It reads the CSV once, so it takes about a minute.
+
+`.\.venv\Scripts\python.exe -m scripts.data_checks.date_gaps`
+
+It prints counts only and saves `data\reports\date_gaps.json`, which also holds example row numbers per gap bucket. If it says "The index does not match the CSV", rerun `raw_index`. It takes `--block-mb` like `raw_index`.

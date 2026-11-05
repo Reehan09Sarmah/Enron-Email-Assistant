@@ -14,7 +14,7 @@ Updated: 2026-11-02
 9. Build in small measured steps
 
 ## Next step
-Requirements: study, then decide; then the data decision.
+Rex runs date_gaps (R7); then decide 0007 (same-message rule); then the build script.
 
 ## Decisions
 | # | Title | Date |
@@ -22,6 +22,9 @@ Requirements: study, then decide; then the data decision.
 | 0001 | Project choice: permission-aware Enron mail assistant | 2026-10-22 |
 | 0002 | Local parquet reader: pyarrow 26.0.0 | 2026-10-22 |
 | 0003 | Progress bars with tqdm 4.70.1 | 2026-11-02 |
+| 0004 | Requirements and limits set now | 2026-11-06 |
+| 0005 | Data: search EnronQA now, full raw corpus later | 2026-11-06 |
+| 0006 | Storage of the frozen dataset: Parquet via pyarrow | 2026-11-06 |
 
 ## Results log
 One line per measured result: date, data version (commit `c0b3a91`), check, number.
@@ -36,9 +39,11 @@ One line per measured result: date, data version (commit `c0b3a91`), check, numb
 - 2026-11-02, c0b3a91, R4 question_overlap: FINDING the 3,106 shared questions all sit on different emails (0 on the same email in two splits); 2,389 on 2 emails, 564 on 3-5, 104 on 6-10, 49 on more than 10.
 - 2026-11-02, c0b3a91, R5 body_copies: 517,401 rows hold 243,509 distinct bodies; 17,236 held by 2 or more users (500 by more than 10); 61,283 mix a sent folder with other folders; 5,252 of 73,772 dev emails (7.1%) have an exact copy with another user (lower bound).
 - 2026-11-02, c0b3a91, R6 body_diff: FINDING in all 200 sampled pairs (seed 42) the raw body sits inside the EnronQA body; EnronQA is longer by 23 to 38 characters at the end (a closing line of "=" confirmed by hand on one email); similarity 0.968 / 0.986 / 1.000. EnronQA did not edit the email text (sample; exact equality not tested).
+- 2026-11-06, c0b3a91 + raw CSV (SHA-256 a605f0a2…), header probe (Rex, 1,500 groups of identical body text held by 2+ users, seed 7): body only keeps 1,500 of 1,500 groups whole; body + sender + subject + date keeps 1,154 whole and splits 346 (611 copies cut off); the date text differs in 334 groups (22.3%), sender in 72 (4.8%), subject in 52 (3.5%).
 
 ## Open questions
-- The GitHub remote is still named `JobFit`. Reuse it (rename on GitHub) or start a new repo? Nothing is pushed until Rex decides.
+- RESOLVED 2026-11-06: the GitHub remote. Only the Enron history is public: `main` was rebuilt as a new history and pushed to `origin` (Enron-Email-Assistant). The old remote is renamed `jobfit` and nothing is pushed to it.
+- 0007: what counts as the same message. Principle agreed in discussion: when unsure, err toward denying (a leak is worse than a wrongly denied recipient). Waiting for R7.
 - Ideas from the earlier plan, to reconsider during requirements, not decided: compare at least 4 search setups; MCP server; approval step before any action; automatic checks on every push; at least 15 prompt-injection test emails; AI-judge calibrated against Rex's labels.
 
 ## Small calls
@@ -60,6 +65,9 @@ One line per measured result: date, data version (commit `c0b3a91`), check, numb
 - R5 also reads the `path` column of the EnronQA dev file, to know which index rows are dev emails. It counts "other users" by distinct users per body, as R3 does for Message-IDs.
 - R6 picks its 200 positions among the dev rows with seed 42 (R3 matched all dev keys) and reports keys missing from the raw CSV as a FINDING. It cuts bodies with the same functions as R3 and `raw_index`. Length ratio is EnronQA chars / raw chars. Prefix, suffix, containment and similarity use whitespace-collapsed text. A pair with equal collapsed text counts as "EnronQA contained in raw". `SequenceMatcher` runs with `autojunk=False`, which is exact but can be slow on a few very long bodies.
 - R6 saves per-pair numbers and (user, path) in its JSON, never text.
+- 2026-11-06: `main` was rebuilt as an orphan history (first commit = the tree of the reset commit 599dc83, then the later commits cherry-picked), so all hashes changed. The old line stays local as branch `jobfit-full-history` (no upstream) and tag `v1-jobfit-archive`; neither is ever pushed. Remotes: `origin` = Enron-Email-Assistant, `jobfit` = old JobFit repo (nothing pushed to it). Commit hashes in older lines of this file refer to the old line.
+- R7 `date_gaps.py` compares the date as collapsed text (so a pure formatting difference lands in the "0 s" bucket), sender lower-cased, subject as collapsed text. Whole-hour gap buckets cover 1 to 14 hours only; a whole-hour gap of 15 to 23 hours is "other under 24 hours". Copies are cut to the 20 lowest row numbers per group, so a capped group may keep a single user. A group with fewer than 2 parsed dates goes to "fewer than 2 dates parsed". The JSON lists, per bucket, the row numbers of up to 10 example groups (all kept rows of each group). It stops with a message if an index row is missing from the CSV.
+- An untracked file `data_test.py` sits in the repo root. It is not Claude's and was not touched or committed.
 
 ## Hours
 | Date | Hours | What |
